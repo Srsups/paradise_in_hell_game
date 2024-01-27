@@ -4,17 +4,17 @@ import java.awt.Color;
 import java.awt.Graphics;
 import java.awt.Rectangle;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Random;
+import java.util.Timer;
+import java.util.TimerTask;
 
 
-public class Inimigo extends Rectangle{
+public class Boss3 extends Rectangle{
 	
 	public boolean alive = true;
 
-	public int spd = 2;
+	public int spd = 3;
 	public int right = 1, up = 0, down = 0, left = 0;
 	
 	public int curAnimation = 0;
@@ -35,29 +35,26 @@ public class Inimigo extends Rectangle{
 	
 	public static int COOLDOWN_INTERVAL = 60;
 	
-	public Inimigo(int x, int y, int dano) {
-		super(x,y,32,32);
+	public Boss3(int x, int y, int dano) {
+		super(x,y,128,128);
 		this.dano = dano;
+		this.cooldown = COOLDOWN_INTERVAL;
 	}
 	
-	public void perseguirPlayer() {
-		Player p = Game.player;
-		if(x < p.x && World1.isFree(x+spd, y)) {
-			if(new Random().nextInt(100) < 33)
-				x+=spd;
-		}
-		else if(x > p.x && World1.isFree(x-spd, y)) {
-			if(new Random().nextInt(100) < 33)
-				x-=spd;
-		}
-		
-		if(y < p.y && World1.isFree(x, y+spd)) {
-			if(new Random().nextInt(100) < 33)
+	public void ataque() {
+		Timer timer = new Timer();
+        
+        timer.scheduleAtFixedRate(new TimerTask() {
+            public void run() {
+                // 1º ataque
+                System.out.println("Boss atacou!");
+            }
+        }, 0, 15000); // Segundo parâmetro é o atraso inicial, terceiro é o intervalo entre os ataques
+	}
+	
+	public void entrada() {
+		if(y < 142) {
 				y+=spd;
-		}
-		else if(y > p.y && World1.isFree(x, y-spd)) {
-			if(new Random().nextInt(100) < 33)
-				y-=spd;
 		}
 	}
 	
@@ -68,7 +65,11 @@ public class Inimigo extends Rectangle{
 		
 		boolean moved = true;
 		
-		perseguirPlayer();
+		if(Game.entrada == true) {
+			entrada();
+		}
+		
+		ataque();
 		
 		if(moved) {
 		
@@ -77,7 +78,7 @@ public class Inimigo extends Rectangle{
 		if(curFrames == targetFrames) {
 			curFrames = 0;
 			curAnimation++;
-			if(curAnimation == Spritesheet.inimigo_front.length) {
+			if(curAnimation == Spritesheet.dragao_front_esquerda.length) {
 				curAnimation = 0;
 			}
 		}
@@ -90,7 +91,6 @@ public class Inimigo extends Rectangle{
 		
 		if(cooldown > 0)
 			cooldown --;
-		
 	}
 	
 	public static boolean isCooldownReady() {
@@ -110,10 +110,23 @@ public class Inimigo extends Rectangle{
 	        return;
 	    }
 		
-		g.drawImage(Spritesheet.inimigo_front[curAnimation],x-Camera.x,y-Camera.y,32,32,null);
+		if(curAnimation == 0)
+			if(x<Player.x) {
+				g.drawImage(Spritesheet.boss[0],x-Camera.x,y-Camera.y,128,128,null);
+			}else {
+				g.drawImage(Spritesheet.boss[0],x-Camera.x,y-Camera.y,128,128,null);
+			}
+		else {
+			if(x<Player.x) {
+				g.drawImage(Spritesheet.boss[0],x-Camera.x,y-Camera.y,128,128,null);
+			}else {
+				g.drawImage(Spritesheet.boss[0],x-Camera.x,y-Camera.y,128,128,null);
+			}	
+		}
 		
 		for(int i = 0; i < bullets.size(); i++) {
 			bullets.get(i).render(g);
 		}
 	}
 }
+

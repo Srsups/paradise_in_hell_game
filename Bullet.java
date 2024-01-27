@@ -1,4 +1,4 @@
-package zelda1;
+package info;
 
 import java.awt.Graphics;
 import java.awt.Rectangle;
@@ -9,7 +9,8 @@ public class Bullet extends Rectangle {
     public int bulletVerticalDirection = 0;
     public int speed = 7;
     public int frames = 0;
-    public static List<Bullet> bullets;
+    public static int dano = 40;
+    public List<Bullet> bullets;
 
     public Bullet(int x, int y, int dir, int bulletVerticalDirection, List<Bullet> bullets) {
         super(x + 16, y + 16, 10, 10);
@@ -46,6 +47,7 @@ public class Bullet extends Rectangle {
             if (this.intersects(inimigoAtual) && inimigoAtual.alive) {
                 bullets.remove(this);
                 inimigoAtual.alive = false;
+                Game.countInimigoMorto++;
                 break;
             }
         }
@@ -55,6 +57,7 @@ public class Bullet extends Rectangle {
             if (this.intersects(morcegoAtual) && morcegoAtual.alive) {
                 bullets.remove(this);
                 morcegoAtual.alive = false;
+                Game.countMorcegoMorto++;
                 break;
             }
         }
@@ -64,6 +67,7 @@ public class Bullet extends Rectangle {
             if (this.intersects(dragaoAtual) && dragaoAtual.alive) {
                 bullets.remove(this);
                 dragaoAtual.alive = false;
+                Game.countDragaoMorto++;
                 break;
             }
         }

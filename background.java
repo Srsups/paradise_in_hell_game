@@ -1,4 +1,4 @@
-	package zelda1;
+package info;
 
 import java.awt.Color;
 import java.awt.Graphics;

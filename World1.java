@@ -1,36 +1,40 @@
-package zelda1;
+package info;
 
+import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Graphics;
+import java.awt.GraphicsDevice;
+import java.awt.GraphicsEnvironment;
+import java.awt.Image;
 import java.awt.Rectangle;
 import java.awt.Toolkit;
+import java.awt.event.ComponentAdapter;
+import java.awt.event.ComponentEvent;
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
+import javax.swing.ImageIcon;
+import javax.swing.JFrame;
 import javax.swing.JOptionPane;
+import javax.swing.JPanel;
 
 public class World1 {
-	
-	public static int larguraDoMundo = 200000;
-    public static int alturaDoMundo = 150000;
 	
 	public static List<Blocks> blocos = new ArrayList<Blocks>();
 	public static List<Escada> escadas = new ArrayList<Escada>();
 	
-	public World1() {
-        
-        escadas.add(new Escada(128,128));
-        blocos.add(new Blocks(104,104));
-        blocos.add(new Blocks(104,128));
-        blocos.add(new Blocks(104,152));
-        blocos.add(new Blocks(128,104));
-        blocos.add(new Blocks(152,104));
-        blocos.add(new Blocks(176,104));
-        blocos.add(new Blocks(176,128));
-        blocos.add(new Blocks(176,152));
+	private BufferedImage worldBuffer; // Adicione esta variável
+	
+	private boolean requisitosAtendidos = false;
+	
+	public World1() {       
 	}
+	
+	public void initBuffer() {
+        worldBuffer = new BufferedImage(Game.screenWidth, Game.screenHeight, BufferedImage.TYPE_INT_ARGB);
+    }
 	
 	public static boolean isFree(int x, int y) {
 		for(int i = 0; i < blocos.size(); i++) {
@@ -42,36 +46,19 @@ public class World1 {
 		return true;
 	}
 	
-	public static boolean entrada_Boss_Room(int x, int y) {
-		for(int i = 0; i < escadas.size(); i++) {
-			Escada escadaAtual = escadas.get(i);
-			if(escadaAtual.intersects(new Rectangle(x,y,48,48))) {
-				// Verifica se o personagem está no meio ou próximo do meio da escada
-	            int middleOfStairsX = escadaAtual.x + (escadaAtual.width / 2);
-	            int middleOfStairsY = escadaAtual.y + (escadaAtual.height / 2);
-
-	            int distanciaMaximaDoMeio = 4; // ajuste conforme necessário
-
-	            if (Math.abs(x - middleOfStairsX) <= distanciaMaximaDoMeio && Math.abs(y - middleOfStairsY) <= distanciaMaximaDoMeio) {
-	                return false; // Personagem está no meio ou próximo do meio da escada
-	            }
-			}
-		}
-		return true;
+	public static boolean entrada_Boss_Room(int x, int y, int largura, int altura) {
+	    for (int i = 0; i < escadas.size(); i++) {
+	        Escada escadaAtual = escadas.get(i);
+	        Rectangle areaPersonagem = new Rectangle(Player.x, Player.y, largura, altura);
+	        if (areaPersonagem.intersects(escadaAtual)) {            
+	                return false;
+	        }
+	    }
+	    return true;
 	}
 	
-	public static void BossRoom() {
-		String[] opcoes = {"Voltar", "Continuar"};
-		Game.paused = true;
-		int escolha = JOptionPane.showOptionDialog(null, "Boss Room", "Você entrou na boss room", JOptionPane.YES_NO_OPTION, JOptionPane.PLAIN_MESSAGE, null, opcoes, "Botao 3");
-		if (escolha == 0) {
-			System.exit(0);
-		}else {
-			System.exit(0);
-		}
-	}
-	
-	public void render(Graphics g) {		
+	public void renderToBuffer() {
+		Graphics g = worldBuffer.getGraphics();
 		int xstart = Camera.x >> 4; //mesma coisa que dividir por 16 só que mais rápido
         int ystart = Camera.y >> 4;
         
@@ -103,15 +90,37 @@ public class World1 {
 
                 g.drawImage(spriteSelecionado, xPos - Camera.x, yPos - Camera.y, spriteWidth, spriteHeight, null);
             }
-        }
-
-        
-		for(int i = 0; i < blocos.size(); i++) {
-			blocos.get(i).render(g);
-		}
-		
-		for(int i = 0; i < escadas.size(); i++) {
-			escadas.get(i).render(g);
-		}
+        }       
+		g.dispose();
 	}
+
+		
+	public void render(Graphics g) {
+		renderToBuffer();
+	    g.drawImage(worldBuffer, 0, 0, null);
+	    if (Game.countMorcegoMorto >= 1 && Game.countInimigoMorto >= 1 && Game.countDragaoMorto >= 1) {
+	        if (!requisitosAtendidos) {
+	        	escadas.add(new Escada(Player.x, Player.y - 100));
+		        blocos.add(new Blocks(Escada.x - 24, Escada.y));
+		        blocos.add(new Blocks(Escada.x - 24, Escada.y + 24));
+		        blocos.add(new Blocks(Escada.x - 24, Escada.y - 24));
+		        blocos.add(new Blocks(Escada.x, Escada.y - 24));
+		        blocos.add(new Blocks(Escada.x + 24, Escada.y - 24));
+		        blocos.add(new Blocks(Escada.x + 48, Escada.y - 24));
+		        blocos.add(new Blocks(Escada.x + 48, Escada.y));
+		        blocos.add(new Blocks(Escada.x + 48, Escada.y + 24));
+
+	            requisitosAtendidos = true;
+	        }
+
+	        // Movemos esta parte do código para dentro do bloco condicional, para garantir que só seja executada quando necessário
+	        for (int i = 0; i < blocos.size(); i++) {
+	            blocos.get(i).render(g);
+	        }
+
+	        for (int i = 0; i < escadas.size(); i++) {
+	            escadas.get(i).render(g);
+	        }
+	    }
+    }
 }

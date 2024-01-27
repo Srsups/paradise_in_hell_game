@@ -1,4 +1,4 @@
-package zelda1;
+package info;
 
 import javax.swing.*;
 import java.awt.*;

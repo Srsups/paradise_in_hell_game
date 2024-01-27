@@ -1,4 +1,4 @@
-package zelda1;
+package info;
 
 import java.awt.Dimension;
 import java.awt.Graphics;

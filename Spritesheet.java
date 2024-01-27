@@ -1,4 +1,4 @@
-package zelda1;
+package info;
 
 import java.awt.image.BufferedImage;
 import java.io.IOException;
@@ -20,6 +20,10 @@ public class Spritesheet {
 	
 	public static BufferedImage[] player_bullet_cima;
 	
+	public static BufferedImage[] dragao_bullet_lado;
+	
+	public static BufferedImage[] dragao_bullet_cima;
+	
 	public static BufferedImage[] inimigo_front;
 	
 	public static BufferedImage backgroundSprite;
@@ -38,6 +42,10 @@ public class Spritesheet {
 	
 	public static BufferedImage[] bg_World3;
 	
+	public static BufferedImage[] boss;
+	
+	public static BufferedImage escadaLocked;
+	
 	
 	public Spritesheet() {
 		try {
@@ -53,6 +61,7 @@ public class Spritesheet {
 		bg_World1 = new BufferedImage[3];
 		bg_World2 = new BufferedImage[3];
 		bg_World3 = new BufferedImage[3];
+		boss = new BufferedImage[1];
 		
 		inimigo_front = new BufferedImage[2];
 		
@@ -87,7 +96,13 @@ public class Spritesheet {
 		player_bullet_cima = new BufferedImage[1];
 		
 		player_bullet_lado[0] = Spritesheet.getSprite(10, 189, 16, 16);
-		player_bullet_cima[0] = Spritesheet.getSprite(178, 209, 16, 16);	
+		player_bullet_cima[0] = Spritesheet.getSprite(178, 209, 16, 16);
+		
+		dragao_bullet_lado = new BufferedImage[1];
+		dragao_bullet_cima = new BufferedImage[1];
+		
+		dragao_bullet_lado[0] = Spritesheet.getSprite(354, 251, 10, 6);
+		dragao_bullet_cima[0] = Spritesheet.getSprite(344, 270, 6, 10);
 		
 		morcego[0] = Spritesheet.getSprite(196, 215, 8, 10);
         morcego[1] = Spritesheet.getSprite(205, 217, 16, 8);
@@ -103,6 +118,10 @@ public class Spritesheet {
 		backgroundSprite = Spritesheet.getSprite(300, 241, 16, 16);
 		
 		escadaSprite = Spritesheet.getSprite(249, 270, 24, 24);
+		
+		escadaLocked = Spritesheet.getSprite(327, 270, 24, 24);
+		
+		boss[0] = Spritesheet.getSprite(292, 78, 64, 64);
 	}
 	
 	public static BufferedImage getSprite(int x, int y, int width, int height) {

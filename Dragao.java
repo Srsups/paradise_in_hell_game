@@ -1,4 +1,4 @@
-package zelda1;
+package info;
 
 import java.awt.Color;
 import java.awt.Graphics;
@@ -19,13 +19,9 @@ public class Dragao extends Rectangle{
 	
 	public int curFrames = 0, targetFrames = 15;
 	
-	public static List<Bullet> bullets = new ArrayList<Bullet>();
+	private List<Dragon_Bullet> dg_bullets = new ArrayList<Dragon_Bullet>();
 	
-	public boolean shoot = false;
-	
-	public int dir = 1;
-	
-	public int bulletVerticalDirection = 0;
+	private boolean shoot = false;
 	
 	private int dano;
 	
@@ -33,10 +29,15 @@ public class Dragao extends Rectangle{
 	
 	public static int COOLDOWN_INTERVAL = 60;
 	
+    public static boolean canShoot = true;
+	
+	private long lastShootTime = 0;
+	
+	private long timer_to_shoot = 500;
+	
 	public Dragao(int x, int y, int dano) {
 		super(x,y,32,32);
 		this.dano = dano;
-		this.cooldown = COOLDOWN_INTERVAL;
 	}
 	
 	public void perseguirPlayer() {
@@ -71,24 +72,52 @@ public class Dragao extends Rectangle{
 		
 		if(moved) {
 		
-		curFrames++;
+			curFrames++;
 		
-		if(curFrames == targetFrames) {
-			curFrames = 0;
-			curAnimation++;
-			if(curAnimation == Spritesheet.dragao_front_esquerda.length) {
-				curAnimation = 0;
+			if(curFrames == targetFrames) {
+				curFrames = 0;
+				curAnimation++;
+				if(curAnimation == Spritesheet.dragao_front_esquerda.length) {
+					curAnimation = 0;
+				}
 			}
 		}
-		}
 		
-		if(shoot) {
-			shoot = false;
-			bullets.add(new Bullet(x,y,dir,bulletVerticalDirection, bullets));
-		}
+		long currentTime = System.currentTimeMillis();
+	    if (currentTime - lastShootTime >= timer_to_shoot) {
+	        lastShootTime = currentTime;
+	        // Calcular a direção em relação à posição do personagem
+            int deltaX = Player.x - this.x;
+            int deltaY = Player.y - this.y;
+
+            // Determinar a direção dos projéteis com base nas diferenças
+            int bulletHorizontalDirection = deltaX >= 0 ? 1 : -1;
+            int bulletVerticalDirection = deltaY >= 0 ? 1 : -1;
+            
+            if(Player.x == this.x) {
+            	bulletHorizontalDirection = 0;
+            }
+
+            // Criar um novo projétil com a direção calculada
+            dg_bullets.add(new Dragon_Bullet(x, y, bulletHorizontalDirection, bulletVerticalDirection));
+	    }
+
+	    for (int i = 0; i < dg_bullets.size(); i++) {
+	        dg_bullets.get(i).tick();
+	    }
 		
 		if(cooldown > 0)
 			cooldown --;
+		
+		// Remover os projéteis que atingiram o limite de tempo
+	    for (int i = 0; i < dg_bullets.size(); i++) {
+	        Dragon_Bullet bullet = dg_bullets.get(i);
+	        bullet.tick();
+	        if (bullet.frames >= 500) {
+	            dg_bullets.remove(bullet);
+	            i--; // Atualizar o índice após a remoção
+	        }
+	    }
 	}
 	
 	public static boolean isCooldownReady() {
@@ -102,7 +131,7 @@ public class Dragao extends Rectangle{
 	 public int getDano() {
 	        return dano;
 	 }
-	
+	 
 	public void render(Graphics g) {
 		if (!alive) {
 	        return;
@@ -122,8 +151,10 @@ public class Dragao extends Rectangle{
 			}	
 		}
 		
-		for(int i = 0; i < bullets.size(); i++) {
-			bullets.get(i).render(g);
+		if (dg_bullets != null) {
+			for (int i = 0; i < dg_bullets.size(); i++) {
+				dg_bullets.get(i).render(g);
+			}
 		}
 	}
 }

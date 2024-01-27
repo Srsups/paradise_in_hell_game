@@ -1,60 +1,87 @@
-package zelda1;
+package info;
 
+import javax.imageio.ImageIO;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.ComponentAdapter;
+import java.awt.event.ComponentEvent;
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
+import java.awt.event.MouseEvent;
+import java.awt.event.MouseListener;
 import java.awt.image.BufferStrategy;
 import java.awt.image.BufferedImage;
+import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.concurrent.ExecutionException;
 
 
-
-import javax.swing.JOptionPane;
-
-
-public class Game extends Canvas implements Runnable, KeyListener {
+public class Game extends Canvas implements Runnable, KeyListener, MouseListener {
 
 	public static boolean paused = false;
     public static Player player;
     public static World1 world1;
     public static World2 world2;
     public static World3 world3;
+    public static BossRoom bossroom;
+    public static Pause_screen pausescreen;
     private long tempoMinimoEntreTiros = 500;
+    private long dashcooldown = 2000;
     public static List<Inimigo> inimigos = new ArrayList<Inimigo>();
     public static List<Morcego> morcegos = new ArrayList<Morcego>();
     public static List<Dragao> dragoes = new ArrayList<Dragao>();
+    public static List<Dragon_Bullet> dg_bullet = new ArrayList<Dragon_Bullet>();
+    public static Boss3 boss3;
+    public static Boss2 boss2;
+    public static Boss1 boss1;
+    public static List<Escada> escadas = new ArrayList<Escada>();
     public static int LarguraTela;
     public static int AlturaTela;
-    private JFrame frame;
+    static JFrame frame;
     private Timer enemySpawnTimer;
     private Timer morcegoSpawnTimer;
     private Timer dragaoSpawnTimer;
     private int enemySpawnInterval = 7000;
     private int morcegoSpawnInterval = 5000;
-    private int dragaoSpawnInterval = 10000;
+    private int dragaoSpawnInterval = 5000;
     public static int screenWidth;
     public static int screenHeight;
     public int startX, startY;
     public int danodragao = 100;
     public int danoinimigo = 50;
     public int danomorcego = 25;
+    public static int danoboss = 5000;
+    public static boolean normal_zone = true;
+    public static int larguraDaTela;
+    public static int alturaDaTela;
+    private static int frames = 0;
+    private static long lastTime = System.nanoTime();
+    private static double fps = 0.0;
+    private static boolean render_bg = false;
+    private static boolean deathmessage;
+    public static boolean entrada = true;
+    public static int countMorcegoMorto;
+    public static int countInimigoMorto;
+    public static int countDragaoMorto;
     
     public Game() {
         new Spritesheet();
         this.setFocusable(true);
         this.requestFocusInWindow();
         this.addKeyListener(this);
+        this.addMouseListener(this);
         player = new Player(32, 32, screenWidth, screenHeight);
         world1 = new World1();
         world2 = new World2();
         world3 = new World3();
+        bossroom = new BossRoom();
         
         enemySpawnTimer = new Timer(enemySpawnInterval, new ActionListener() {
             public void actionPerformed(ActionEvent e) {
@@ -76,35 +103,125 @@ public class Game extends Canvas implements Runnable, KeyListener {
             }
         });
         dragaoSpawnTimer.start();
+        
+        
     }
 
     public static void tick() {
     	String[] opcoes = {"Retornar ao Menu", "Sair do Jogo"};
     	player.tick(LarguraTela, AlturaTela);
-        for (int i = 0; i < inimigos.size(); i++) {
-            inimigos.get(i).tick();
-        }
-        for (int i = 0; i < morcegos.size(); i++) {
-            morcegos.get(i).tick();
+    	
+    	if(normal_zone) {
+	        for (int i = 0; i < inimigos.size(); i++) {
+	            inimigos.get(i).tick();
+	        }
+	        for (int i = 0; i < morcegos.size(); i++) {
+	            morcegos.get(i).tick();
+	        }
+	        
+	        for (int i = 0; i < dragoes.size(); i++) {
+	            dragoes.get(i).tick();
+	        }
+	        
+	        if(Inimigo.cooldown <= 0) {
+	        	colisaoinimigo();
+	        	Inimigo.cooldown = 100;
+	        }
+	        
+	        if(Morcego.cooldown <= 0) {
+	        	colisaomorcego();
+	        	Morcego.cooldown = 400;
+	        }
+	        
+	        if(Dragao.cooldown <= 0) {
+	        	colisaodragao();
+	        	Dragao.cooldown = 200;
+	        }
+	        
+	        for (int i = 0; i < inimigos.size(); i++) {
+	        	Inimigo inimigoAtual = inimigos.get(i);
+	        	inimigoAtual.tick();
+	        }
+	        
+	        if(Inimigo.isCooldownReady()) {
+	        	colisaoinimigo();
+	        	for (Inimigo inimigo :inimigos) {
+	        		inimigo.resetCooldown();
+	        	}
+	        }
+	        
+	        for (int i = 0; i < morcegos.size(); i++) {
+	        	Morcego morcegoAtual = morcegos.get(i);
+	        	morcegoAtual.tick();
+	        }
+	        
+	        if(Dragao.isCooldownReady()) {
+	        	colisaodragao();
+	        	for (Dragao dragao :dragoes) {
+	        		dragao.resetCooldown();
+	        	}
+	        }
+    	} else {
+    		if(boss1.cooldown <= 0) {
+            	colisaoboss();
+            	boss1.cooldown = 100;
+            }
+    		
+    		if(Boss1.isCooldownReady()) {
+            	colisaoboss();
+            	boss1.resetCooldown();
+            }
+    	}
+    	
+    	// Incrementa o número de quadros
+        frames++;
+
+        // Calcula o FPS a cada segundo
+        long now = System.nanoTime();
+        if (now - lastTime >= 1_000_000_000) { // Um segundo em nanossegundos
+            fps = (double) frames * 1e9 / (now - lastTime);
+            frames = 0;
+            lastTime = now;
         }
         
-        for (int i = 0; i < dragoes.size(); i++) {
-            dragoes.get(i).tick();
+        if(Player.vida<=0) {
+        	paused = true;
+        	deathmessage = true;
+            int escolha = JOptionPane.showOptionDialog(null, "O que deseja fazer?", "Você morreu!", JOptionPane.YES_NO_OPTION, JOptionPane.PLAIN_MESSAGE, null, opcoes, "Botao 3");
+            if (escolha == 1) {
+                System.exit(0);
+            } else if(escolha == 0) {
+            	Menu.main(null);;
+            } else {
+                paused = false;
+            }
+        }        
+    }
+    
+    public static void tick_boss_room() {
+    	String[] opcoes = {"Retornar ao Menu", "Sair do Jogo"};
+    	player.tick(LarguraTela, AlturaTela);
+    	boss1.tick();
+
+    	if(Boss1.cooldown <= 0) {
+            colisaoboss();
+            boss1.cooldown = 100;
         }
-        
-        if(Inimigo.cooldown <= 0) {
-        	colisaoinimigo();
-        	Inimigo.cooldown = 100;
-        }
-        
-        if(Morcego.cooldown <= 0) {
-        	colisaomorcego();
-        	Morcego.cooldown = 400;
-        }
-        
-        if(Dragao.cooldown <= 0) {
-        	colisaodragao();
-        	Dragao.cooldown = 200;
+    		
+    	if(Boss1.isCooldownReady()) {
+            colisaoboss();
+            boss1.resetCooldown();
+    	}
+    	
+    	// Incrementa o número de quadros
+        frames++;
+
+        // Calcula o FPS a cada segundo
+        long now = System.nanoTime();
+        if (now - lastTime >= 1_000_000_000) { // Um segundo em nanossegundos
+            fps = (double) frames * 1e9 / (now - lastTime);
+            frames = 0;
+            lastTime = now;
         }
         
         if(Player.vida<=0) {
@@ -113,42 +230,11 @@ public class Game extends Canvas implements Runnable, KeyListener {
             if (escolha == 1) {
                 System.exit(0);
             } else if(escolha == 0) {
-            	Menu.main(null);
+            	Menu.main(null);;
             } else {
                 paused = false;
             }
-        }
-        
-        for (int i = 0; i < inimigos.size(); i++) {
-        	Inimigo inimigoAtual = inimigos.get(i);
-        	inimigoAtual.tick();
-        }
-        
-        if(Inimigo.isCooldownReady()) {
-        	colisaoinimigo();
-        	for (Inimigo inimigo :inimigos) {
-        		inimigo.resetCooldown();
-        	}
-        }
-        
-        for (int i = 0; i < morcegos.size(); i++) {
-        	Morcego morcegoAtual = morcegos.get(i);
-        	morcegoAtual.tick();
-        }
-        
-        if(Dragao.isCooldownReady()) {
-        	colisaodragao();
-        	for (Dragao dragao :dragoes) {
-        		dragao.resetCooldown();
-        	}
-        }
-        
-        if(Dragao.isCooldownReady()) {
-        	colisaodragao();
-        	for (Dragao dragao :dragoes) {
-        		dragao.resetCooldown();
-        	}
-        }
+        }        
     }
     
     public static void colisaoinimigo() {
@@ -184,6 +270,19 @@ public class Game extends Canvas implements Runnable, KeyListener {
         }
     }
     
+    public static void colisaoboss() {
+        if (boss1 != null) {
+            Boss1 bossAtual = boss1;
+            // Verifica a colisão com o jogador apenas se o boss estiver vivo
+            if (bossAtual.alive && bossAtual.intersects(new Rectangle(player.x, player.y, 128, 128))) {
+                if (Player.vida > 0) {
+                    Player.vida -= bossAtual.getDano();
+                }
+            }
+        }
+    }
+
+    
     public void render() {
         BufferStrategy bs = this.getBufferStrategy();
         if (bs == null) {
@@ -197,11 +296,21 @@ public class Game extends Canvas implements Runnable, KeyListener {
         screenWidth = screenSize.width;
         screenHeight = screenSize.height;
         
-        world2.render(g);        
+        world1.initBuffer();
         
+        world1.render(g); 
         // Desenhe o personagem na posição calculada
         player.render(g, player.x, player.y);
+           
+            //Renderiza a vida no canto superior da tela
+        g.setColor(Color.BLACK); // Define a cor do texto
+        Font fonte = new Font("Arial", Font.BOLD, 20); // Define a fonte do texto
+        g.setFont(fonte);
+        g.drawString("Vida: " + Player.getVida(), 10, 20);
         
+        g.setColor(Color.BLACK);
+        g.drawString("FPS: " + String.format("%.2f", fps), 250, 20);
+            
         for (int i = 0; i < inimigos.size(); i++) {
             inimigos.get(i).render(g);
         }
@@ -211,12 +320,60 @@ public class Game extends Canvas implements Runnable, KeyListener {
         for (int i = 0; i < dragoes.size(); i++) {
             dragoes.get(i).render(g);
         }
-        
+            
         bs.show();
-        g.dispose();
+        g.dispose();        	
     }
+        
+        public void render_boss_room() {
+            BufferStrategy bs = this.getBufferStrategy();
+            if (bs == null) {
+                this.createBufferStrategy(3);
+                return;
+            }
+            Graphics g = bs.getDrawGraphics();
+            
+            bossroom.render_bg(g);
+         
+        	// Desenhe o personagem na posição calculada
+            player.render(g, player.x, player.y);
+            
+            // Renderiza a vida no canto superior da tela
+            g.setColor(Color.BLACK); // Define a cor do texto
+            Font fonte = new Font("Arial", Font.BOLD, 20); // Define a fonte do texto
+            g.setFont(fonte);
+
+            g.drawString("Vida: " + Player.getVida(), 10, 20);
+            
+            g.setColor(Color.BLACK);
+            g.drawString("FPS: " + String.format("%.2f", fps), 250, 20);
+            
+            boss1.render(g);
+            
+            bs.show();
+            g.dispose();
+
+            if(boss1.y == 142) {
+                entrada = false;
+            }
+        }
+        
+        public void render_pause_menu() {
+            BufferStrategy bs = this.getBufferStrategy();
+            if (bs == null) {
+                this.createBufferStrategy(3);
+                return;
+            }
+            Graphics g = bs.getDrawGraphics();
+
+            Pause_screen.render(g);
+
+            bs.show();
+            g.dispose();
+        }
 
     public static void main(String[] args) {
+    		paused = false;
             Game game = new Game();
             game.frame = new JFrame();
             GraphicsEnvironment ge = GraphicsEnvironment.getLocalGraphicsEnvironment();
@@ -225,6 +382,7 @@ public class Game extends Canvas implements Runnable, KeyListener {
             if (gd.isFullScreenSupported()) {
                 game.frame.setUndecorated(true);
                 game.frame.addKeyListener(game);
+                game.frame.addMouseListener(game);
                 gd.setFullScreenWindow(game.frame);
             } else {
                 game.frame.setExtendedState(JFrame.MAXIMIZED_BOTH);
@@ -245,18 +403,44 @@ public class Game extends Canvas implements Runnable, KeyListener {
 
     @Override
     public void run() {
-    	while (true) {
-            if (!paused) {
-                tick();
-                render();
+        long lastTime = System.nanoTime();
+        long now;
+        long delta;
+        final double nsPerFrame = 1_000_000_000.0 / 60.0; // 1 bilhão de nanossegundos por segundo / 60 FPS        
+
+        while (true) {
+            now = System.nanoTime();
+            delta = now - lastTime;
+
+            if (delta >= nsPerFrame) {
+                if (!paused && normal_zone) {
+                    tick();
+                    render();
+                } else if (!paused && !normal_zone) {
+                    tick_boss_room();
+                    render_boss_room();
+                }
+
+                lastTime = now;
             }
+
             try {
-                Thread.sleep(1000 / 60);
+                // Adicione algum código aqui para medir o tempo decorrido e controlar a taxa de quadros.
+                // Isso pode incluir ajustes na lógica do jogo para manter a consistência, se necessário.
+
+                // Calcule o tempo restante para dormir
+                long sleepTime = (long) (nsPerFrame - (System.nanoTime() - lastTime));
+
+                // Durma o thread para manter uma taxa constante de quadros
+                if (sleepTime > 0) {
+                    Thread.sleep(sleepTime / 1_000_000, (int) (sleepTime % 1_000_000));
+                }
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
         }
     }
+
 
     @Override
     public void keyTyped(KeyEvent e) {
@@ -283,30 +467,15 @@ public class Game extends Canvas implements Runnable, KeyListener {
         } else if (e.getKeyCode() == KeyEvent.VK_S) {
             player.down = true;
         }
-        if (e.getKeyCode() == KeyEvent.VK_SPACE && Player.canShoot) {
-            long currentTime = System.currentTimeMillis();
-            if (currentTime - Player.lastShootTime >= tempoMinimoEntreTiros) {
-                player.shoot = true;
-                Player.lastShootTime = currentTime;
-                Player.canShoot = false;
-            }
-        }
         if (e.getKeyCode() == KeyEvent.VK_ESCAPE) {
-            paused = true;
-            int escolha = JOptionPane.showConfirmDialog(
-                    null,
-                    "Deseja sair do jogo?",
-                    "Sair do Jogo",
-                    JOptionPane.YES_NO_OPTION
-            );
-
-            if (escolha == JOptionPane.YES_OPTION) {
-                Menu.main(null);
-            } else {
+            if (paused) {
                 paused = false;
+            } else {
+                paused = true;
+                Game.frame.setCursor(Cursor.getDefaultCursor());
+                render_pause_menu();
             }
         } else if (paused) {
-            
         }
     } 
 
@@ -330,10 +499,63 @@ public class Game extends Canvas implements Runnable, KeyListener {
         } else if (e.getKeyCode() == KeyEvent.VK_S) {
             player.down = false;
         }
-        if (e.getKeyCode() == KeyEvent.VK_SPACE) {
-            player.shoot = false;
-            Player.canShoot = true; // Permite que o jogador atire novamente quando a tecla de espaço for liberada
+    }
+    
+    @Override
+    public void mouseClicked(MouseEvent e) {
+    	// Se o botão esquerdo do mouse foi clicado
+        if (e.getButton() == MouseEvent.BUTTON1 && Player.canShoot) {
+            long currentTime = System.currentTimeMillis();
+            if (currentTime - Player.lastShootTime >= tempoMinimoEntreTiros) {
+                player.shoot = true;
+                Player.lastShootTime = currentTime;
+                Player.canShoot = false;
+            }
         }
+        player.shoot = false;
+        Player.canShoot = true;
+        if (e.getButton() == MouseEvent.BUTTON3 && Player.canDash) {
+            long currentTime = System.currentTimeMillis();
+            if (currentTime - Player.lastDashTime >= dashcooldown) {
+                player.dash = true;
+                Player.lastDashTime = currentTime;
+                Player.canDash = false;
+            }
+        }
+        player.dash = false;
+        Player.canDash = true;
+    }
+    
+    @Override
+    public void mousePressed(MouseEvent e) {
+        if (e.getButton() == MouseEvent.BUTTON1 && Player.canShoot) {
+            long currentTime = System.currentTimeMillis();
+            if (currentTime - Player.lastShootTime >= tempoMinimoEntreTiros) {
+                player.shoot = true;
+                Player.lastShootTime = currentTime;
+                Player.canShoot = false;
+            }
+        }
+        if (e.getButton() == MouseEvent.BUTTON3 && Player.canDash) {
+            long currentTime = System.currentTimeMillis();
+            if (currentTime - Player.lastDashTime >= dashcooldown) {
+                player.dash = true;
+                Player.lastDashTime = currentTime;
+                Player.canDash = false;
+            }
+        }
+    }
+
+    @Override
+    public void mouseReleased(MouseEvent e) {
+    	if (e.getButton() == MouseEvent.BUTTON1 && Player.canShoot) {
+    		player.shoot = false;
+            Player.canShoot = true;
+    	}
+    	if (e.getButton() == MouseEvent.BUTTON3 && Player.canDash) {
+    		player.dash = false;
+            Player.canDash = true;
+    	}
     }
     
     public void gerarInimigoAleatorio() {
@@ -401,7 +623,31 @@ public class Game extends Canvas implements Runnable, KeyListener {
             startY = rand.nextBoolean() ? player.y - telay  -32 : player.y + telay + 32;
         }
 
-        Dragao novoDragao = new Dragao(startX, startY, danomorcego);
+        Dragao novoDragao = new Dragao(startX, startY, danodragao);
         novoDragao.alive = true;
         dragoes.add(novoDragao);
-    }}
+    }
+    
+    public static void spawnBoss3() {
+    	boss3 = new Boss3(player.x - 45, player.y - 1200, danoboss);
+    }
+    
+    public static void spawnBoss2() {
+    	boss2 = new Boss2(player.x - 45, player.y - 1200, danoboss);
+    }
+
+    public static void spawnBoss1() {
+    	boss1 = new Boss1(player.x - 45, player.y + 400, danoboss);
+    }
+
+	@Override
+	public void mouseEntered(MouseEvent e) {
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	public void mouseExited(MouseEvent e) {
+		// TODO Auto-generated method stub
+		
+	}}
