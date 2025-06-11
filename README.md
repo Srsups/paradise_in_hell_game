@@ -1,1 +1,1 @@
-jogo estilo roguelite de sobrevivência feito em java
+jogo estilo roguelite/bullet heaven feito em java
